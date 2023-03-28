@@ -1,0 +1,48 @@
+
+DATASETS:
+  TRAIN:
+  - train
+  TEST:
+  - val
+INPUT:
+  FORMAT: RGB
+  COCO_VAL_PATH: /home/grisha/piece_train/dataset/val2017
+  #MIN_SIZE_TEST: 256
+MODEL:
+  META_ARCHITECTURE: 'LocalizerAndClassifier'
+  PIXEL_MEAN: [123.675, 123.675, 123.675]
+  PIXEL_STD: [65.025, 65.025, 65.025]
+  LAC:
+    DETECTOR:
+      MODULE: 'ssd.ssd'
+      TYPE: 'SSD'
+      CFG:
+        MODEL:
+          BACKBONE:
+            NAME: "build_mobilenet_backbone"
+            PRETRAINED: True
+          SSD:
+              NUM_CLASSES: 1
+              NUM_CONVS: 0
+              IN_FEATURES: ["feat1", "feat2"]
+              SCORE_THRESH_TEST: 0.5
+              TOPK_CANDIDATES_TEST: 400
+              NMS_THRESH_TEST: 0.45
+              BBOX_REG_WEIGHTS: [10.0, 10.0, 5.0, 5.0]
+              MULTIBOX_LOSS_NEG_POS_RATIO: 1.0
+    CLASSIFIER:
+      MODULE: 'backbone'
+      TYPE: 'MobileNetV3'
+      KWARGS:
+        pretrained: True
+        num_classes: 12
+SOLVER:
+  BASE_LR: 0.0005
+  BIAS_LR_FACTOR: 1.0
+  CHECKPOINT_PERIOD: 5000
+  GAMMA: 0.1
+  IMS_PER_BATCH: 16
+  MAX_ITER: 1000000
+TEST:
+  EVAL_PERIOD: 10000
+OUTPUT_DIR: ./results

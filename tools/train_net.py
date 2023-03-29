@@ -2,12 +2,15 @@
 from detectron2.config import get_cfg
 from detectron2.engine import DefaultTrainer, default_argument_parser, default_setup, launch
 
+from detectron2.evaluation import COCOEvaluator, DatasetEvaluators
+
 from localizer_and_classifier import add_lac_config
 from ssd import add_ssd_config
 
 import backbone
 import datasets
 
+from detectron2.data import build_detection_test_loader, build_detection_train_loader
 from detectron2.data.build import get_detection_dataset_dicts, build_batch_data_loader
 from detectron2.data.common import DatasetFromList, MapDataset
 from detectron2.data.samplers import RepeatFactorTrainingSampler, TrainingSampler
@@ -34,42 +37,22 @@ def setup(args):
 
 
 class Trainer(DefaultTrainer):
+
     @classmethod
     def build_train_loader(cls, cfg, mapper=None):
-        dataset_dicts = get_detection_dataset_dicts(
-            cfg.DATASETS.TRAIN,
-            filter_empty=cfg.DATALOADER.FILTER_EMPTY_ANNOTATIONS,
-            min_keypoints=cfg.MODEL.ROI_KEYPOINT_HEAD.MIN_KEYPOINTS_PER_IMAGE
-            if cfg.MODEL.KEYPOINT_ON
-            else 0,
-            proposal_files=cfg.DATASETS.PROPOSAL_FILES_TRAIN if cfg.MODEL.LOAD_PROPOSALS else None
-        )
-        dataset = DatasetFromList(dataset_dicts, copy=False)
-
-        if mapper is None:
-            mapper = DatasetMapper(cfg, True)
-        dataset = MapDataset(dataset, mapper)
-
-        sampler_name = cfg.DATALOADER.SAMPLER_TRAIN
-        logger = logging.getLogger(__name__)
-        logger.info("Using training sampler {}".format(sampler_name))
-        if sampler_name == "TrainingSampler":
-            sampler = TrainingSampler(len(dataset))
-        elif sampler_name == "RepeatFactorTrainingSampler":
-            repeat_factors = RepeatFactorTrainingSampler.repeat_factors_from_category_frequency(
-                dataset_dicts, cfg.DATALOADER.REPEAT_THRESHOLD
-            )
-            sampler = RepeatFactorTrainingSampler(repeat_factors)
-        else:
-            raise ValueError("Unknown training sampler: {}".format(sampler_name))
-        return build_batch_data_loader(
-            dataset,
-            sampler,
-            cfg.SOLVER.IMS_PER_BATCH,
-            aspect_ratio_grouping=cfg.DATALOADER.ASPECT_RATIO_GROUPING,
-            num_workers=cfg.DATALOADER.NUM_WORKERS,
-        )
+        return build_detection_train_loader(cfg, mapper=DatasetMapper(cfg, is_train=True))
     
+    @classmethod
+    def build_test_loader(cls, cfg, dataset_name):
+        return build_detection_test_loader(cfg, dataset_name, mapper=DatasetMapper(cfg, is_train=False))
+
+    @classmethod
+    def build_evaluator(cls, cfg, dataset_name, output_folder=None):
+        evaluator_list = []
+        evaluator_list.append(COCOEvaluator(dataset_name, output_dir=output_folder))
+        return DatasetEvaluators(evaluator_list)
+
+
 
 def main(args):
     cfg = setup(args)

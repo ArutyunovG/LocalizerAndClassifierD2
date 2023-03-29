@@ -11,10 +11,6 @@ import backbone
 import datasets
 
 from detectron2.data import build_detection_test_loader, build_detection_train_loader
-from detectron2.data.build import get_detection_dataset_dicts, build_batch_data_loader
-from detectron2.data.common import DatasetFromList, MapDataset
-from detectron2.data.samplers import RepeatFactorTrainingSampler, TrainingSampler
-import logging
 
 from dataset_mapper import DatasetMapper
 

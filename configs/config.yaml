@@ -30,6 +30,11 @@ MODEL:
               NMS_THRESH_TEST: 0.45
               BBOX_REG_WEIGHTS: [10.0, 10.0, 5.0, 5.0]
               MULTIBOX_LOSS_NEG_POS_RATIO: 1.0
+          ANCHOR_GENERATOR:
+            NAME: "SSDAnchorGenerator"
+            SIZES: [[30.0], [60.0], [111.0]]
+            ASPECT_RATIOS: [[1.0, 2.0, 0.5], [1.0, 2.0, 0.5, 3.0, 0.3333333]]
+            OFFSET: 0.5
     CLASSIFIER:
       MODULE: 'backbone'
       TYPE: 'MobileNetV3'
@@ -41,8 +46,8 @@ SOLVER:
   BIAS_LR_FACTOR: 1.0
   CHECKPOINT_PERIOD: 5000
   GAMMA: 0.1
-  IMS_PER_BATCH: 16
+  IMS_PER_BATCH: 12
   MAX_ITER: 1000000
 TEST:
-  EVAL_PERIOD: 10
+  EVAL_PERIOD: 5000
 OUTPUT_DIR: ./results

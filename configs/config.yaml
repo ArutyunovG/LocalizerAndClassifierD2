@@ -1,4 +1,3 @@
-
 DATASETS:
   TRAIN:
   - train
@@ -7,7 +6,7 @@ DATASETS:
 INPUT:
   FORMAT: RGB
   COCO_VAL_PATH: /home/grisha/piece_train/dataset/val2017
-  #MIN_SIZE_TEST: 256
+  MIN_SIZE_TEST: 384
 MODEL:
   META_ARCHITECTURE: 'LocalizerAndClassifier'
   PIXEL_MEAN: [123.675, 123.675, 123.675]
@@ -16,6 +15,7 @@ MODEL:
     DETECTOR:
       MODULE: 'ssd.ssd'
       TYPE: 'SSD'
+      INPUT_SIZE: (512, 512)
       CFG:
         MODEL:
           BACKBONE:

@@ -110,9 +110,10 @@ if __name__ == "__main__":
 
     detector_model = ExportModelWrapper(model.detector_stable)
     detector_model.eval()
+    dh, dw = cfg.MODEL.LAC.DETECTOR.INPUT_SIZE
     export_simplified_model(os.path.join(args.output, 'detector.onnx') ,
                             detector_model,
-                            (256, 256),
+                            (dh, dw),
                             input_names=detector_model.input_names,
                             output_names=detector_model.output_names)
 

@@ -5,14 +5,13 @@ import copy
 def add_lac_config(cfg):
     _C = cfg
 
-    _C.MODEL.BACKBONE.PRETRAINED = False
-
     _C.MODEL.LAC = CN()
     
     _C.MODEL.LAC.DETECTOR = CN()
     _C.MODEL.LAC.DETECTOR.MODULE = ''
     _C.MODEL.LAC.DETECTOR.TYPE = ''
     _C.MODEL.LAC.DETECTOR.CFG = copy.deepcopy(cfg)
+    _C.MODEL.LAC.DETECTOR.INPUT_SIZE = (512, 512)
 
     _C.MODEL.LAC.CLASSIFIER = CN()
     _C.MODEL.LAC.CLASSIFIER.MODULE = ''

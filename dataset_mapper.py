@@ -44,7 +44,7 @@ class DatasetMapper:
             dataset_dict.pop("annotations", None)
             return dataset_dict
 
-        out_size = 512
+        out_size = random.randint(256, 1024)
         min_size = 128
 
         prescale = random.uniform(0.5, 2.0)

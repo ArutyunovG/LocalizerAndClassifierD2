@@ -1,5 +1,4 @@
 from detectron2.modeling.meta_arch.build import META_ARCH_REGISTRY
-from detectron2.modeling.meta_arch.rcnn import GeneralizedRCNN
 from detectron2.config import configurable
 
 from detectron2.structures.boxes import pairwise_iou
@@ -20,6 +19,7 @@ class LocalizerAndClassifier(nn.Module):
     def __init__(
         self,
         *,
+        detector_input_size,
         classifier_input_size,
         roi_w_offset,
         roi_h_offset,
@@ -28,6 +28,7 @@ class LocalizerAndClassifier(nn.Module):
 
         super().__init__()
 
+        self.detector_input_size = detector_input_size
         self.classifier_input_size = classifier_input_size
 
         self.roi_w_offset = roi_w_offset
@@ -49,9 +50,11 @@ class LocalizerAndClassifier(nn.Module):
             return self.inference(batched_inputs)
 
         self.detector_stable.eval()
-        losses = self.detector_trainable(self.batched_inputs_for_detector(batched_inputs))
+        detector_input = self.batched_inputs_for_detector(batched_inputs)
+        losses = self.detector_trainable(detector_input)
         self.detector_stable.load_state_dict(self.detector_trainable.state_dict())
-        detector_predictions = self.detector_stable.forward(batched_inputs)
+        detector_predictions = self.detector_stable.forward(detector_input)
+        self.rescale_detector_predictions(detector_predictions, batched_inputs)
         classifier_input = self.generate_classifier_input(batched_inputs, detector_predictions)
         losses.update(self.calc_classification_loss(classifier_input))
         return losses
@@ -68,7 +71,8 @@ class LocalizerAndClassifier(nn.Module):
         classifier_type = locate(cfg.MODEL.LAC.CLASSIFIER.MODULE + '.' + cfg.MODEL.LAC.CLASSIFIER.TYPE)
         classifier = classifier_type(*cfg.MODEL.LAC.CLASSIFIER.ARGS, **cfg.MODEL.LAC.CLASSIFIER.KWARGS) 
         return {
-            'classifier_input_size':  cfg.MODEL.LAC.CLASSIFIER.INPUT_SIZE,
+            "detector_input_size":  cfg.MODEL.LAC.DETECTOR.INPUT_SIZE,
+            "classifier_input_size":  cfg.MODEL.LAC.CLASSIFIER.INPUT_SIZE,
             "roi_w_offset": cfg.MODEL.LAC.ROI_W_OFFSET,
             "roi_h_offset": cfg.MODEL.LAC.ROI_H_OFFSET,     
             "detector_net": detector,
@@ -213,13 +217,36 @@ class LocalizerAndClassifier(nn.Module):
     def batched_inputs_for_detector(self, batch_inputs):
         batch_inputs_for_detector = copy.deepcopy(batch_inputs)
         for bi in batch_inputs_for_detector:
+            if bi['image'].shape[1:] != self.detector_input_size:
+                image_tensor = bi['image']
+                image_tensor = image_tensor.unsqueeze(0)
+                image_tensor = F.interpolate(image_tensor, self.detector_input_size)
+                image_tensor = image_tensor.squeeze(0)
+                bi['image'] = image_tensor
+                scale_y = self.detector_input_size[0] / bi['height']
+                scale_x = self.detector_input_size[1] / bi['width']
+                bi['height'], bi['width'] = self.detector_input_size
+            else:
+                scale_x = scale_y = 1.0
             for cls_idx in range(len(bi['instances'].gt_classes)):
                 bi['instances'].gt_classes[cls_idx] = 0
+            bi['instances']._image_size = self.detector_input_size
+            bi['instances'].gt_boxes.scale(scale_x=scale_x, scale_y=scale_y)
         return batch_inputs_for_detector
 
     def to_classifier_labels(self, cls):
         return torch.tensor(cls).to(dtype=torch.int64,
                                     device=self.target_device).view(-1)
+
+    def rescale_detector_predictions(self, detector_predictions, batched_inputs):
+        assert len(batched_inputs) == len(detector_predictions)
+        for batch in range(len(detector_predictions)):
+            scale_y = batched_inputs[batch]['height'] / self.detector_input_size[0]
+            scale_x = batched_inputs[batch]['width'] / self.detector_input_size[1]
+            detector_predictions[batch]['instances']._image_size = (batched_inputs[batch]['height'],
+                                                                    batched_inputs[batch]['width'])
+            detector_predictions[batch]['instances'].pred_boxes.scale(scale_x=scale_x, scale_y=scale_y)
+
 
     @property
     def target_device(self):

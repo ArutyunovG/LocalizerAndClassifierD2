@@ -24,7 +24,9 @@ class LocalizerAndClassifier(nn.Module):
         roi_w_offset,
         roi_h_offset,
         detector_net,
-        classifier_net):
+        classifier_net,
+        detector_loss_weight,
+        classifier_loss_weight):
 
         super().__init__()
 
@@ -33,6 +35,9 @@ class LocalizerAndClassifier(nn.Module):
 
         self.roi_w_offset = roi_w_offset
         self.roi_h_offset = roi_h_offset
+
+        self.detector_loss_weight = detector_loss_weight
+        self.classifier_loss_weight = classifier_loss_weight
 
         self.detector_trainable = detector_net
         self.detector_stable = copy.deepcopy(self.detector_trainable)
@@ -51,7 +56,10 @@ class LocalizerAndClassifier(nn.Module):
 
         self.detector_stable.eval()
         detector_input = self.batched_inputs_for_detector(batched_inputs)
-        losses = self.detector_trainable(detector_input)
+        losses = {
+                    loss_key: self.detector_loss_weight * loss_value 
+                    for (loss_key, loss_value) in self.detector_trainable(detector_input).items()
+                 }
         self.detector_stable.load_state_dict(self.detector_trainable.state_dict())
         detector_predictions = self.detector_stable.forward(detector_input)
         self.rescale_detector_predictions(detector_predictions, batched_inputs)
@@ -76,7 +84,9 @@ class LocalizerAndClassifier(nn.Module):
             "roi_w_offset": cfg.MODEL.LAC.ROI_W_OFFSET,
             "roi_h_offset": cfg.MODEL.LAC.ROI_H_OFFSET,     
             "detector_net": detector,
-            "classifier_net": classifier
+            "classifier_net": classifier,
+            "detector_loss_weight": cfg.MODEL.LAC.DETECTOR.LOSS_WEIGHT,
+            "classifier_loss_weight": cfg.MODEL.LAC.CLASSIFIER.LOSS_WEIGHT
         }
 
 
@@ -171,7 +181,7 @@ class LocalizerAndClassifier(nn.Module):
 
         assert len(loss_names) == len(loss_values)
         losses = {
-            f'loss_classifier/loss_{name}': value 
+            f'loss_classifier/loss_{name}': self.classifier_loss_weight * value 
             for (name, value) in zip(loss_names, loss_values)
         }
 

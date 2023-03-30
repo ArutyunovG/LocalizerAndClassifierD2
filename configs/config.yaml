@@ -35,12 +35,14 @@ MODEL:
             SIZES: [[30.0], [60.0], [111.0]]
             ASPECT_RATIOS: [[1.0, 2.0, 0.5], [1.0, 2.0, 0.5, 3.0, 0.3333333]]
             OFFSET: 0.5
+      LOSS_WEIGHT: 1.0
     CLASSIFIER:
       MODULE: 'backbone'
       TYPE: 'MobileNetV3'
       KWARGS:
         pretrained: True
         num_classes: 12
+      LOSS_WEIGHT: 1.0
 SOLVER:
   BASE_LR: 0.0005
   BIAS_LR_FACTOR: 1.0
